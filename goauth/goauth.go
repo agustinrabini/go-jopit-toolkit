@@ -85,13 +85,13 @@ func AuthenticateRequestWithOptions(request *http.Request, opts ...AuthOption) e
 		if isPublic {
 			err = errors.New("internal network error")
 		}
-		return apierrors.NewInternalServerApiError("Error validating access token", err)
+		return apierrors.NewApiError("Error validating access token", "TK_06", http.StatusInternalServerError, apierrors.CauseList{err})
 	}
 
 	if response.StatusCode == http.StatusOK {
 		authData := &authRequestData{}
 		if marshalError := jsonLib.Unmarshal(response.Bytes(), authData); marshalError != nil {
-			return apierrors.NewInternalServerApiError("Invalid json response calling auth api", nil)
+			return apierrors.NewApiError("Invalid json response calling auth api", "TK_07", http.StatusInternalServerError, nil)
 		}
 
 		if err := validateRequest(authData, authOptions); err != nil {
@@ -105,7 +105,7 @@ func AuthenticateRequestWithOptions(request *http.Request, opts ...AuthOption) e
 	}
 
 	if response.StatusCode == http.StatusNotFound {
-		return apierrors.NewApiError("invalid_token", "not_found", http.StatusUnauthorized, apierrors.CauseList{})
+		return apierrors.NewApiError("invalid_token", "TK_08", http.StatusUnauthorized, apierrors.CauseList{})
 	}
 
 	// Unknown status code returned by rest API call.
@@ -113,21 +113,21 @@ func AuthenticateRequestWithOptions(request *http.Request, opts ...AuthOption) e
 	if isPublic {
 		message = "unknown_error"
 	}
-	return apierrors.NewApiError(message, "", response.StatusCode, apierrors.CauseList{})
+	return apierrors.NewApiError(message, "TK_09", response.StatusCode, apierrors.CauseList{})
 }
 
 func validateRequest(data *authRequestData, authOptions authOptions) error {
 
 	if data.UserId == nil {
-		return apierrors.NewForbiddenApiError("Invalid user id")
+		return apierrors.NewApiError("Invalid user id", "TK_10", http.StatusForbidden, nil)
 	}
 
 	if data.RootId == nil {
-		return apierrors.NewForbiddenApiError("Invalid root id")
+		return apierrors.NewApiError("Invalid root id", "TK_11", http.StatusForbidden, nil)
 	}
 
 	if data.Status == nil || (!authOptions.allowNonActiveUser && *(data.Status) != "active") {
-		return apierrors.NewForbiddenApiError("User not active")
+		return apierrors.NewApiError("User not active", "TK_12", http.StatusForbidden, nil)
 	}
 
 	return nil

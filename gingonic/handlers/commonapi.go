@@ -24,7 +24,7 @@ import (
 
 var (
 	jsonpContentType      = []string{"text/javascript;charset=UTF-8"}
-	publicMessageError, _ = json.Marshal(apierrors.NewInternalServerApiError("Oops! Something went wrong...", nil))
+	publicMessageError, _ = json.Marshal(apierrors.NewApiError("Oops! Something went wrong...", "TK_02", http.StatusInternalServerError, nil))
 )
 
 const (
@@ -186,20 +186,31 @@ func handleServerError(c *gin.Context, data []byte, status int, logError bool) [
 // Retrieves the propagated error and notices the internal error from the different available
 // middleware sources in order of availability: context -> middleware
 func retrieveAndNoticeMiddlewareError(c *gin.Context, data []byte, status int) apierrors.ApiError {
-	var notifiableErr error
 
 	ctxErr := errorFromGinContext(c)
 	if ctxErr != nil {
-		notifiableErr = ctxErr
+		return apierrors.NewApiError(
+			ctxErr.Error(),
+			"TK_03",
+			status,
+			apierrors.CauseList{
+				"Error from context middleware",
+			},
+		)
 	}
 
-	retErr, err := apierrors.NewCustomStatusApiErrorFromBytes(data, status)
-
-	if notifiableErr == nil && err == nil {
-		notifiableErr = retErr
+	message := "An error occurred"
+	if len(data) > 0 {
+		message = string(data)
 	}
 
-	return retErr
+	return apierrors.NewApiError(
+		message,
+		"TK_04",
+		status,
+		nil,
+	)
+
 }
 
 //Attributes filter
@@ -214,7 +225,7 @@ func applyAttributesFilter(attributes string, data []byte) ([]byte, apierrors.Ap
 		aux := make([]interface{}, 0)
 		err := json.Unmarshal(data, &aux)
 		if err != nil {
-			return nil, apierrors.NewInternalServerApiError("Error unmarshalling filterable json content", err)
+			return nil, apierrors.NewApiError("Error unmarshalling filterable json content", "TK_05", http.StatusInternalServerError, apierrors.CauseList{err})
 		}
 		filterSlice(aux, attributesTree)
 		result = aux
@@ -222,7 +233,7 @@ func applyAttributesFilter(attributes string, data []byte) ([]byte, apierrors.Ap
 		aux := make(map[string]interface{})
 		err := json.Unmarshal(data, &aux)
 		if err != nil {
-			return nil, apierrors.NewInternalServerApiError("Error unmarshalling filterable json content", err)
+			return nil, apierrors.NewApiError("Error unmarshalling filterable json content", "TK_05", http.StatusInternalServerError, apierrors.CauseList{err})
 		}
 		filterMap(aux, attributesTree)
 		result = aux
@@ -230,7 +241,7 @@ func applyAttributesFilter(attributes string, data []byte) ([]byte, apierrors.Ap
 
 	res, err := json.Marshal(result)
 	if err != nil {
-		return nil, apierrors.NewInternalServerApiError("Error marshalling filterable json content", err)
+		return nil, apierrors.NewApiError("Error marshalling filterable json content", "TK_05", http.StatusInternalServerError, apierrors.CauseList{err})
 	}
 	return res, nil
 }

@@ -200,7 +200,7 @@ func (fam firebaseAccountManager) VerificationEmail(c *gin.Context, userEmail st
 
 	link, err := fam.AuthClient.EmailVerificationLink(c, userEmail)
 	if err != nil {
-		return "", apierrors.NewApiError("error on firebase verification . ", err.Error(), 500, apierrors.CauseList{})
+		return "", apierrors.NewApiError("error on firebase verification . ", "TK_13", http.StatusInternalServerError, apierrors.CauseList{err.Error()})
 	}
 
 	return link, nil
@@ -210,7 +210,7 @@ func (fam firebaseAccountManager) ResetPassword(c *gin.Context, userEmail string
 
 	link, err := fam.AuthClient.PasswordResetLink(c, userEmail)
 	if err != nil {
-		return "", apierrors.NewApiError("error on firebase PasswordResetLink. ", err.Error(), 500, apierrors.CauseList{})
+		return "", apierrors.NewApiError("error on firebase PasswordResetLink. ", "TK_14", http.StatusInternalServerError, apierrors.CauseList{err.Error()})
 	}
 
 	return link, nil
@@ -244,4 +244,44 @@ func (getemail getEmailFromUserId) GetEmailFromUserID(ctx context.Context) (stri
 
 	return userEmail, nil
 
+}
+
+type JopitUser struct {
+	UID         string `json:"rawId,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Email       string `json:"email,omitempty"`
+	PhoneNumber string `json:"phoneNumber,omitempty"`
+	PhotoURL    string `json:"photoUrl,omitempty"`
+}
+
+func NewServiceGetUserInformation() GetUserInformation {
+	return &userService{}
+}
+
+type userService struct {
+	GetUserInformationInterface GetUserInformation
+}
+
+type GetUserInformation interface {
+	GetUserInformation(ctx context.Context) (JopitUser, error)
+}
+
+func (s userService) GetUserInformation(ctx context.Context) (JopitUser, error) {
+	userID := ctx.Value(FirebaseUserID)
+	if userID == "" {
+		return JopitUser{}, fmt.Errorf("expected to receive an user_id, but it was empty")
+	}
+
+	user, err := fbClient.AuthClient.GetUser(ctx, userID.(string))
+	if err != nil {
+		return JopitUser{}, err
+	}
+
+	return JopitUser{
+		UID:         user.UID,
+		DisplayName: user.DisplayName,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		PhotoURL:    user.PhotoURL,
+	}, nil
 }

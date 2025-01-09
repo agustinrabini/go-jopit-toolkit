@@ -86,7 +86,13 @@ type JopitRouterConfig struct {
 }
 
 func noRouteHandler(c *gin.Context) {
-	c.JSON(http.StatusNotFound, apierrors.NewNotFoundApiError(fmt.Sprintf("Resource %s not found.", c.Request.URL.Path)))
+	c.JSON(http.StatusNotFound, apierrors.NewApiError(
+		fmt.Sprintf("Resource %s not found. Method: %s", c.Request.URL.Path, c.Request.Method),
+		"TK_01",
+		http.StatusNotFound,
+		apierrors.CauseList{fmt.Sprintf("Invalid URL: %s", c.Request.URL.Path)},
+	))
+
 }
 
 func AddResponseExpiration(time time.Duration, c *gin.Context) {
